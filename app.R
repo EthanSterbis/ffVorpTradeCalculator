@@ -10,7 +10,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 SEASON_RANGE <- 2021:2024
 REG_WEEKS    <- 1:18
 
-# Serve the project directory so we can use vorpLogo.png as a favicon.
 favicon_href <- NULL
 if (file.exists("vorpLogo.png")) {
   shiny::addResourcePath("appstatic", ".")
