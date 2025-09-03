@@ -1,8 +1,8 @@
 # Sterb’s Fantasy Football VORP Trade Calculator
 
-**Live app:** https://ethansterbis.shinyapps.io/ffVorpTradeCalculator/
+**App Link:** https://ethansterbis.shinyapps.io/ffVorpTradeCalculator/
 
-An interactive **Shiny** app that evaluates fantasy football trades using **Value Over Replacement Player (VORP)**. Adjust league size, roster/bench composition, and scoring; choose seasons and week windows; and compare trades with a balance meter based on aggregated VORP.
+An interactive Shiny app that evaluates fantasy football trades using Value Over Replacement Player (VORP). Adjust league size, roster/bench composition, and scoring; choose seasons and week windows; and compare trades with a balance meter based on aggregated VORP.
 
 ---
 
@@ -12,8 +12,7 @@ An interactive **Shiny** app that evaluates fantasy football trades using **Valu
 - **Leaderboard** — top players by **AVG VORP** (or **Expected VORP**) over a custom week span.  
 - **Replacement** — positional replacement values implied by your league settings.  
 - **Player Weeks** — the week-level inputs behind the VORP calculations.  
-- **League & Scoring controls** — league size, QB/RB/WR/TE/FLEX/SuperFLEX/Bench, PPR, pass TD points, TE PPR bonus.  
-- **Dark UI** designed for readability; tables are center-aligned.
+- **League & Scoring controls** — league size, QB/RB/WR/TE/FLEX/SuperFLEX/Bench, PPR, pass TD points, TE PPR bonus.
 
 ---
 
