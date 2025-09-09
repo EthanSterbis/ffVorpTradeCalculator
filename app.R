@@ -1,13 +1,14 @@
 # Sterb's Fantasy Football VORP Trade Calculator
 # @EthanSterbis on X
 
-#### Packages ####
-needed <- c("shiny","tidyverse","dplyr","nflreadr","DT","rlang","purrr","stringr","bslib")
-to_get <- needed[!needed %in% installed.packages()[,"Package"]]
-if (length(to_get)) install.packages(to_get, repos = "https://cloud.r-project.org")
-invisible(lapply(needed, library, character.only = TRUE))
+library(shiny)
+library(dplyr)
+library(nflreadr)
+library(rlang)
+library(bslib)
+library(DT)
 
-SEASON_RANGE <- 2021:2024
+SEASON_RANGE <- 2021:2025
 REG_WEEKS    <- 1:18
 
 favicon_href <- NULL
@@ -16,7 +17,6 @@ if (file.exists("vorpLogo.png")) {
   favicon_href <- "appstatic/vorpLogo.png"
 }
 
-#### Helpers ####
 col0 <- function(df, nm) if (nm %in% names(df)) df[[nm]] else 0
 
 startable_slots_for_pos <- function(pos, R){
@@ -46,24 +46,34 @@ default_repl_idx <- function(league_settings){
   )
 }
 
-#### Data ####
 load_ffopp_weekly <- function(seasons){
-  seasons <- as.integer(seasons); seasons <- seasons[seasons %in% SEASON_RANGE]
+  seasons <- as.integer(seasons)
+  seasons <- seasons[seasons %in% SEASON_RANGE]
   if (!length(seasons)) seasons <- SEASON_RANGE
+  
+  if (file.exists("data/ffopp.rds")) {
+    dat <- readRDS("data/ffopp.rds")
+    return(
+      dat %>%
+        dplyr::filter(season %in% seasons,
+                      position %in% c("QB","RB","WR","TE"),
+                      week %in% REG_WEEKS)
+    )
+  }
+  
   nflreadr::load_ff_opportunity(seasons = seasons) %>%
-    rename(
-      game_id   = any_of("game_id"),
-      player_id = any_of("player_id"),
-      full_name = any_of(c("full_name","player_name")),
-      posteam   = any_of(c("posteam","team")),
-      position  = any_of(c("position","pos")),
-      season    = any_of("season"),
-      week      = any_of("week")
+    dplyr::rename(
+      game_id   = dplyr::any_of("game_id"),
+      player_id = dplyr::any_of("player_id"),
+      full_name = dplyr::any_of(c("full_name","player_name")),
+      posteam   = dplyr::any_of(c("posteam","team")),
+      position  = dplyr::any_of(c("position","pos")),
+      season    = dplyr::any_of("season"),
+      week      = dplyr::any_of("week")
     ) %>%
-    filter(position %in% c("QB","RB","WR","TE"), week %in% REG_WEEKS)
+    dplyr::filter(position %in% c("QB","RB","WR","TE"), week %in% REG_WEEKS)
 }
 
-#### Fantasy Points ####
 prep_ffopp_weekly <- function(ffOpp, scoring){
   id_cols <- c("game_id","player_id","full_name","posteam","position","season","week")
   pass_cols <- c("pass_attempt","pass_yards_gained","pass_touchdown","pass_two_point_conv",
@@ -126,7 +136,6 @@ prep_ffopp_weekly <- function(ffOpp, scoring){
     )
 }
 
-#### Replacement & VORP ####
 compute_weekly_replacement <- function(ffOpp_weekly_ready, league_settings,
                                        which_points=c("actual","expected"),
                                        override_idx=NULL){
@@ -192,7 +201,6 @@ add_weekly_vorp <- function(ffOpp_weekly_ready, league_settings, override_idx){
     )
 }
 
-#### UI ####
 ui <- fluidPage(
   title = "Sterb's Fantasy Football VORP Trade Calculator",
   theme = bslib::bs_theme(
@@ -210,51 +218,33 @@ ui <- fluidPage(
     if (!is.null(favicon_href)) tags$link(rel = "icon", type = "image/png", href = favicon_href),
     tags$title("Sterb's Fantasy Football VORP Trade Calculator")
   ),
-  
-  # Styles (FIX: make all Selectize/inputs readable on dark bg; keep trade pills dark)
   tags$style(HTML("
-    /* Trade Calculator 'pills' (custom, not Selectize) */
     .pill {padding:6px 10px;margin:4px;border-radius:14px;background:#f1f3f5;
            display:inline-flex;align-items:center;font-size:13px;color:#2B2B2B;}
     .pill .rm {margin-left:8px;color:#888;cursor:pointer;font-weight:700}
     .meter-label{margin-top:8px;font-weight:600}
-
-    /* Input grids */
     .roster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));grid-gap:8px;align-items:start;}
     .scoring-grid,.repl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));grid-gap:8px;align-items:start;}
     .roster-item .lbl,.grid-label{font-size:12px;font-weight:600;margin:0 0 2px 2px;display:block;}
     .roster-item .shiny-input-container{margin-bottom:0;}
-
-    /* General labels */
     .form-label, .control-label, label, .form-check-label { color: rgba(234,234,234,.95) !important; }
-
-    /* Text/number/select fields */
     .form-control, .form-select { color: rgba(234,234,234,.95) !important; }
-
-    /* Placeholders */
     .form-control::placeholder { color: rgba(234,234,234,.7) !important; opacity:1 !important; }
-
-    /* --- Selectize: make closed value and typed text LIGHT --- */
     .selectize-input, .selectize-input input { color: rgba(234,234,234,.95) !important; }
     .selectize-control .item,
     .selectize-control.single .selectize-input > .item { color: rgba(234,234,234,.95) !important; }
     .selectize-input > input::placeholder { color: rgba(234,234,234,.7) !important; opacity:1 !important; }
-
-    /* Dropdown options (good contrast on default dropdown) */
     .selectize-dropdown .option { color: rgba(234,234,234,.95) !important; }
-
-    /* DataTables center alignment */
     table.dataTable thead th, table.dataTable tbody td { text-align:center !important; }
   ")),
-  
   tags$script(HTML("
     $(document).on('click','.rmA', function(){ Shiny.setInputValue('rmA', $(this).data('pid'), {priority:'event'}); });
     $(document).on('click','.rmB', function(){ Shiny.setInputValue('rmB', $(this).data('pid'), {priority:'event'}); });
   ")),
-  
   titlePanel("Sterb's Fantasy Football VORP Trade Calculator"),
   sidebarLayout(
     sidebarPanel(
+      h4("Filters"),
       selectInput("position","Position",choices=c("ALL","QB","RB","WR","TE"),selected="ALL"),
       uiOutput("weeks_ui"),
       uiOutput("min_weeks_ui"),
@@ -264,11 +254,10 @@ ui <- fluidPage(
       numericInput("top_n","Show Top N", value=50, min=5, max=500, step=5),
       actionButton("recalc","Recalculate", class="btn-primary"),
       br(), br(),
-      
+      h4("Data"),
       selectInput("season","Season(s)", choices=as.character(SEASON_RANGE),
                   selected=as.character(max(SEASON_RANGE)), multiple=TRUE),
       tags$small("Hold Ctrl/Cmd to select multiple seasons."), br(), br(),
-      
       h4("League Settings"),
       selectInput("league_size","League Size",
                   choices=c(6,8,10,12,14,16,18,20,22,24,32), selected=12),
@@ -288,7 +277,6 @@ ui <- fluidPage(
           div(class="roster-item", div(class="lbl","# Bench"),
               selectInput("BEN", label=NULL, choices=4:12, selected=6, width="100%"))
       ),
-      
       h4("Scoring"),
       div(class="scoring-grid",
           div(class="roster-item", div(class="lbl","Points per Reception"),
@@ -298,7 +286,6 @@ ui <- fluidPage(
           div(class="roster-item", div(class="lbl","TE PPR Bonus"),
               selectInput("te_ppr_bonus", label=NULL, choices=c(0,0.5,1.0), selected=0, width="100%"))
       ),
-      
       h4("Replacement Override (rank)"),
       uiOutput("repl_override_ui")
     ),
@@ -327,9 +314,9 @@ ui <- fluidPage(
                    )
                  )
         ),
-        tabPanel("Leaderboard", DTOutput("tbl_leader")),
-        tabPanel("Replacement", DTOutput("tbl_repl")),
-        tabPanel("Player Weeks", DTOutput("tbl_player")),
+        tabPanel("Leaderboard", DT::DTOutput("tbl_leader")),
+        tabPanel("Replacement", DT::DTOutput("tbl_repl")),
+        tabPanel("Player Weeks", DT::DTOutput("tbl_player")),
         tabPanel("About",
                  tags$pre("Weekly VORP = player-week FP minus the position’s weekly replacement FP.
 
@@ -340,14 +327,13 @@ Default replacement ranks (you can override):
 • TE: round(L*((Startable + BEN*(Startable/TotalStart)) - 0.50)) + 1
 TE startable = TE-only (FLEX/SFLX not counted).
 Min Weeks Played defaults to half of the selected week span.
-Seasons: 2021–2024; Weeks: 1–18.")
+Seasons: 2021–2025; Weeks: 1–18.")
         )
       )
     )
   )
 )
 
-#### Server ####
 server <- function(input, output, session){
   scoring_rx <- reactive({
     list(ppr=as.numeric(input$ppr), pass_td_pts=as.numeric(input$pass_td_pts),
@@ -406,19 +392,17 @@ server <- function(input, output, session){
   }, ignoreInit=FALSE)
   
   output$weeks_ui <- renderUI({
-    req(ffOpp_ready()); wks <- sort(unique(ffOpp_ready()$week))
+    wks <- REG_WEEKS
     fluidRow(
       column(6, selectInput("week_start","Start Week",choices=wks,selected=min(wks))),
       column(6, selectInput("week_end","End Week",choices=wks,selected=max(wks)))
     )
   })
   output$min_weeks_ui <- renderUI({
-    req(ffOpp_ready())
-    wks <- sort(unique(ffOpp_ready()$week))
-    ws <- if (!is.null(input$week_start)) as.integer(input$week_start) else min(wks)
-    we <- if (!is.null(input$week_end))   as.integer(input$week_end)   else max(wks)
+    ws <- if (!is.null(input$week_start)) as.integer(input$week_start) else min(REG_WEEKS)
+    we <- if (!is.null(input$week_end))   as.integer(input$week_end)   else max(REG_WEEKS)
     span <- max(1L, abs(we-ws)+1L)
-    numericInput("min_weeks","Minimum Weeks Played",value=ceiling(span/2),min=1,max=span,step=1)
+    numericInput("min_weeks","Minimum Weeks Played",value=0,min=1,max=span,step=1)
   })
   
   ffOpp_vorp <- reactive({
@@ -455,7 +439,7 @@ server <- function(input, output, session){
       filter(week >= ws, week <= we)
   })
   
-  output$tbl_leader <- renderDT({
+  output$tbl_leader <- DT::renderDT({
     req(vorp_agg(), input$position, input$which_points, input$top_n)
     dat <- vorp_agg() %>% { if (input$position!="ALL") filter(., position==input$position) else . }
     if (input$which_points=="actual") {
@@ -468,14 +452,14 @@ server <- function(input, output, session){
       colnames(dat) <- c("RANK","SEASON","POSITION","PLAYER","TEAM","WEEKS PLAYED","AVG FP EXP","AVG VORP EXP")
     }
     dat <- head(dat, input$top_n)
-    tbl <- datatable(dat, rownames=FALSE, options=list(pageLength=25))
+    tbl <- DT::datatable(dat, rownames=FALSE, options=list(pageLength=25))
     num_cols <- which(vapply(dat, is.numeric, TRUE))
     if ("RANK" %in% names(dat)) num_cols <- setdiff(num_cols, which(names(dat)=="RANK"))
-    if (length(num_cols)) tbl <- formatRound(tbl, columns=num_cols, digits=2)
+    if (length(num_cols)) tbl <- DT::formatRound(tbl, columns=num_cols, digits=2)
     tbl
   })
   
-  output$tbl_repl <- renderDT({
+  output$tbl_repl <- DT::renderDT({
     req(repl_tbl())
     dat <- repl_tbl() %>%
       group_by(season, position) %>%
@@ -486,12 +470,12 @@ server <- function(input, output, session){
         .groups = "drop"
       ) %>% arrange(season, position)
     colnames(dat) <- c("SEASON","POSITION","WEEKS PLAYED","REPLACEMENT FP","REPLACEMENT FP EXP")
-    tbl <- datatable(dat, rownames=FALSE, options=list(pageLength=10))
-    tbl <- formatRound(tbl, columns=c("REPLACEMENT FP","REPLACEMENT FP EXP"), digits=2)
+    tbl <- DT::datatable(dat, rownames=FALSE, options=list(pageLength=10))
+    tbl <- DT::formatRound(tbl, columns=c("REPLACEMENT FP","REPLACEMENT FP EXP"), digits=2)
     tbl
   })
   
-  output$tbl_player <- renderDT({
+  output$tbl_player <- DT::renderDT({
     req(ffOpp_vorp(), input$week_start, input$week_end)
     ws <- min(as.integer(input$week_start), as.integer(input$week_end))
     we <- max(as.integer(input$week_start), as.integer(input$week_end))
@@ -502,13 +486,12 @@ server <- function(input, output, session){
              replacement_fp, replacement_fp_exp,
              VORP_weekly, VORP_weekly_exp) %>%
       arrange(season, week, position, desc(VORP_weekly))
-    tbl <- datatable(dat, rownames=FALSE, options=list(pageLength=25))
+    tbl <- DT::datatable(dat, rownames=FALSE, options=list(pageLength=25))
     num_cols <- which(vapply(dat, is.numeric, TRUE))
-    if (length(num_cols)) tbl <- formatRound(tbl, columns=num_cols, digits=2)
+    if (length(num_cols)) tbl <- DT::formatRound(tbl, columns=num_cols, digits=2)
     tbl
   })
   
-  # Trade Calculator
   player_choices <- reactive({
     dat <- vorp_agg()
     valcol <- if (input$which_points=="actual") "Avg_VORP" else "Avg_VORP_Exp"

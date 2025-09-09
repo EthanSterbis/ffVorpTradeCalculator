@@ -1,0 +1,12 @@
+name: ffVorpTradeCalculator
+title: ffVorpTradeCalculator
+username: ethansterbis
+account: ethansterbis
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15285596
+bundleId: 10882621
+url: https://ethansterbis.shinyapps.io/ffVorpTradeCalculator/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
