@@ -43,6 +43,5 @@ jobs:
           commit_message: "chore(data): weekly refresh of ffopp.rds"
           file_pattern: data/ffopp.rds
           branch: main
-          # Use your account so the commit counts as your contribution:
           commit_user_name: Ethan Sterbis
           commit_user_email: egsterbi@purdue.edu
