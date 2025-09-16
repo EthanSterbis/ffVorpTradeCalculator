@@ -51,27 +51,15 @@ load_ffopp_weekly <- function(seasons){
   seasons <- seasons[seasons %in% SEASON_RANGE]
   if (!length(seasons)) seasons <- SEASON_RANGE
   
-  if (file.exists("data/ffopp.rds")) {
-    dat <- readRDS("data/ffopp.rds")
-    return(
-      dat %>%
-        dplyr::filter(season %in% seasons,
-                      position %in% c("QB","RB","WR","TE"),
-                      week %in% REG_WEEKS)
-    )
-  }
+  url_raw <- "https://raw.githubusercontent.com/EthanSterbis/ffVorpTradeCalculator/main/data/ffopp.rds"
+  con <- url(url_raw, open = "rb")
+  on.exit(close(con), add = TRUE)
+  dat <- readRDS(con)
   
-  nflreadr::load_ff_opportunity(seasons = seasons) %>%
-    dplyr::rename(
-      game_id   = dplyr::any_of("game_id"),
-      player_id = dplyr::any_of("player_id"),
-      full_name = dplyr::any_of(c("full_name","player_name")),
-      posteam   = dplyr::any_of(c("posteam","team")),
-      position  = dplyr::any_of(c("position","pos")),
-      season    = dplyr::any_of("season"),
-      week      = dplyr::any_of("week")
-    ) %>%
-    dplyr::filter(position %in% c("QB","RB","WR","TE"), week %in% REG_WEEKS)
+  dat %>%
+    dplyr::filter(season %in% seasons,
+                  position %in% c("QB","RB","WR","TE"),
+                  week %in% REG_WEEKS)
 }
 
 prep_ffopp_weekly <- function(ffOpp, scoring){
